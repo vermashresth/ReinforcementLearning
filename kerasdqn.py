@@ -30,13 +30,13 @@ class DQNAgent():
     
     def _build_model(self):
         model=Sequential()
-        model.add(Dense(24,input_dim=self.state_size,activaton='relu'))
+        model.add(Dense(24,input_dim=self.state_size,activation='relu'))
         model.add(Dense(24,activation='relu'))
         model.add(Dense(self.action_size,activation='relu'))
         model.compile(loss='mse',optimizer=Adam(lr=self.learning_rate))
         return model
     
-    def remember(self,state,action,reward,next_state,done)L:
+    def remember(self,state,action,reward,next_state,done):
         self.memory.append((state,action,reward,next_state,done))
         
     def act(self,state):
@@ -63,7 +63,7 @@ class DQNAgent():
     def save(self,name):
         self.model.save_weights(name)
         
-if __name__="__main__":
+if __name__=="__main__":
     env=gym.make('CartPole-v1')
     state_size=env.observation_space.shape[0]
     action_size=env.action_space.n
@@ -82,7 +82,7 @@ if __name__="__main__":
             agent.remember(state,action,reward,next_state,done)
             state=next_state
             if done:
-                print("episode: {}/{},score: {}, e: {:.2}".format(e,EPISODES,time,agent.epsilon)
+                print("episode: {}/{},score: {}, e: {:.2}".format(e,EPISODES,time,agent.epsilon))
                 break
-        if len(agent.memory>batch_size):
+        if len(agent.memory)>batch_size:
             agent.replay(batch_size)
