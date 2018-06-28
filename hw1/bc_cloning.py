@@ -32,16 +32,19 @@ def multilayer_perceptron(x, weights, biases, keep_prob):
     print out_layer.name
     return out_layer
 
-def prepare_data(expert_file):
+def prepare_data(expert_file, split=True):
     pickle_in = open(expert_file, "rb")
     expert_data = pickle.load(pickle_in)
-    return train_test_split(expert_data)
+    if split:
+        return train_test_split(expert_data)
+    else:
+        return expert_data
 
 def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('envname', type=str)
-    parser.add_argument('--nb_epochs', type=int, default=8)
+    parser.add_argument('--nb_epochs', type=int, default=100)
     args = parser.parse_args()
 
     train_x, train_y, test_x, test_y = prepare_data("expert_data_pickles/" + args.envname + "_expert.dict")
