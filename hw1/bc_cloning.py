@@ -5,10 +5,6 @@ import pandas as pd
 import os
 
 
-
-
-
-
 def train_test_split(data):
     print data['observations'].shape
     print data['actions'].shape
@@ -45,7 +41,7 @@ def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('envname', type=str)
-    parser.add_argument('--nb_epochs', type=int, default=8000)
+    parser.add_argument('--nb_epochs', type=int, default=8)
     args = parser.parse_args()
 
     train_x, train_y, test_x, test_y = prepare_data("expert_data_pickles/" + args.envname + "_expert.dict")
@@ -79,11 +75,17 @@ def main():
 
 
     output = multilayer_perceptron(x, weights, biases, keep_prob)
-    cost = tf.reduce_mean(tf.square(output - y))
-    train = tf.train.AdamOptimizer(0.00006).minimize(cost)
+    cost = tf.reduce_mean(tf.square(output - y), name='cost')
+    optimizer = tf.train.AdamOptimizer(0.00006).minimize(cost)
+    tf.add_to_collection("optimizer", optimizer)
     tf.summary.scalar("cost", cost)
 
+    train_model([train_x, train_y, test_x, test_y], args.envname, args.nb_epochs, batch_size)
 
+
+
+def train_model(data, envname, nb_epochs, batch_size):
+    train_x, train_y, test_x, test_y = data
     c_t = []
     c_test = []
     with tf.Session() as sess:
@@ -91,10 +93,19 @@ def main():
         sess.run(tf.global_variables_initializer())
         saver = tf.train.Saver()
         merge = tf.summary.merge_all()
-        train_writer = tf.summary.FileWriter( './logs/' + args.envname + '/train ', sess.graph)
-        if(os.path.isdir("my_expert/" + args.envname + "/" )):
-            saver.restore(sess,"my_expert/" + args.envname+ "/" + args.envname )
-        for epoch in range(args.nb_epochs):
+        train_writer = tf.summary.FileWriter( './logs/' + envname + '/train ', sess.graph)
+
+        if(os.path.isdir("my_expert/" + envname + "/" )):
+            saver.restore(sess,"my_expert/" + envname+ "/" + envname )
+
+        graph = tf.get_default_graph()
+        cost = graph.get_operation_by_name("cost").outputs[0]
+        optimizer = tf.get_collection("optimizer")[0]
+        input_x = graph.get_operation_by_name("x").outputs[0]
+        input_y = graph.get_operation_by_name("y").outputs[0]
+        keep_prob = graph.get_operation_by_name("r").outputs[0]
+
+        for epoch in range(nb_epochs):
             total_batch = int(len(train_x) / batch_size)
             x_batches = np.array_split(train_x, total_batch)
             y_batches = np.array_split(train_y, total_batch)
@@ -102,15 +113,14 @@ def main():
 
                 batch_x, batch_y = x_batches[i], y_batches[i]
 
-                summary, _, _ = sess.run([merge, cost, train], feed_dict={x: batch_x, y: batch_y, keep_prob: 0.8})
+                summary, _, _ = sess.run([merge, cost, optimizer], feed_dict={input_x: batch_x, input_y: batch_y, keep_prob: 0.8})
                 # Run cost and train with each sample
-            c_t.append(sess.run(cost, feed_dict={x: batch_x, y: batch_y, keep_prob: 0.8}))
+            c_t.append(sess.run(cost, feed_dict={input_x: batch_x, input_y: batch_y, keep_prob: 0.8}))
             train_writer.add_summary(summary, epoch)
-            c_test.append(sess.run(cost, feed_dict={x:test_x, y:test_y, keep_prob: 0.8}))
+            c_test.append(sess.run(cost, feed_dict={input_x:test_x, input_y:test_y, keep_prob: 0.8}))
             print('Epoch :',epoch,'training Cost :',c_t[epoch], "testing cost :", c_test[epoch])
-        saver.save(sess,"my_expert/" + args.envname+ "/" + args.envname)
+        saver.save(sess,"my_expert/" + envname + "/" + envname)
         print('Model Saved')
-
 
 if __name__ == '__main__':
     main()

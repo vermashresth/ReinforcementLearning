@@ -1,7 +1,7 @@
 import load_policy
 from check_model import policy_fn as my_policy_fn
 import tensorflow as tf
-#
+import numpy as np
 # parser = argparse.ArgumentParser()
 # parser.add_argument('expert_policy_file', type=str)
 #
@@ -22,8 +22,12 @@ with tf.Session() as sess:
 
     graph = tf.get_default_graph()
     for op in tf.get_default_graph().get_operations():
-        print str(op.name) 
+        print str(op.name)
     input_x = graph.get_operation_by_name("x").outputs[0]
     input_y = graph.get_operation_by_name("y").outputs[0]
+    drop_ratio = graph.get_operation_by_name("r").outputs[0]
     prediction = graph.get_tensor_by_name("add:0")
-    cost = graph.get_tensor_by_name("mean:0")
+    cost = graph.get_operation_by_name("cost").outputs[0]
+    train = tf.get_collection("train")[0]
+    _, c=sess.run([train, cost], feed_dict = {input_x:[[10]*11], input_y:[[1]*3],drop_ratio:.8})
+    print c
