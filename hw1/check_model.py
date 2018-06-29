@@ -14,14 +14,17 @@ def policy_fn(observation, session, prob = .8):
 def run_exp(envname, render, max_timesteps, num_rollouts):
     with tf.Session() as sess:
         #First let's load meta graph and restore weights
+        print "init"
         sess.run(tf.global_variables_initializer())
+        print "loading model"
         saver = tf.train.import_meta_graph("my_expert/" + envname + "/" + envname +".meta")
         saver.restore(sess,tf.train.latest_checkpoint("my_expert/" + envname + "/"))
+        print "loaded"
 
-
+        print "loading env"
         env = gym.make(envname)
         max_steps = max_timesteps or env.spec.timestep_limit
-
+        print "env loaded"
         returns = []
         observations = []
         actions = []
@@ -44,7 +47,8 @@ def run_exp(envname, render, max_timesteps, num_rollouts):
                 if steps >= max_steps:
                     break
             returns.append(totalr)
-        return [returns, observations, actions]
+    print "sessiono over"
+    return [returns, observations, actions]
 
 
 

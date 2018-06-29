@@ -45,61 +45,74 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('envname', type=str)
     parser.add_argument('--nb_epochs', type=int, default=100)
+    parser.add_argument('--batch_size', type=int, default=64)
     args = parser.parse_args()
 
+
     train_x, train_y, test_x, test_y = prepare_data("expert_data_pickles/" + args.envname + "_expert.dict")
+    build_train(args, [train_x, train_y, test_x, test_y])
 
-    n_hidden_1 = 32
-    n_hidden_2 = 64
-    n_hidden_3 = 32
-    n_input = train_x.shape[1]
-    n_output = train_y.shape[1]
+def build_train(args, data):
+    train_x, train_y, test_x, test_y = data
 
-    weights = {
-        'h1': tf.Variable(tf.random_normal([n_input, n_hidden_1])),
-        'h2': tf.Variable(tf.random_normal([n_hidden_1, n_hidden_2])),
-        'h3': tf.Variable(tf.random_normal([n_hidden_2, n_hidden_3])),
-        'out': tf.Variable(tf.random_normal([n_hidden_3, n_output]))
-    }
+    if(not os.path.isfile("my_expert/" + args.envname + "/" + args.envname +".meta" )):
+        n_hidden_1 = 32
+        n_hidden_2 = 64
+        n_hidden_3 = 32
+        n_input = train_x.shape[1]
+        n_output = train_y.shape[1]
 
-    biases = {
-        'b1': tf.Variable(tf.random_normal([n_hidden_1])),
-        'b2': tf.Variable(tf.random_normal([n_hidden_2])),
-        'b3': tf.Variable(tf.random_normal([n_hidden_3])),
-        'out': tf.Variable(tf.random_normal([n_output]))
-    }
+        weights = {
+            'h1': tf.Variable(tf.random_normal([n_input, n_hidden_1])),
+            'h2': tf.Variable(tf.random_normal([n_hidden_1, n_hidden_2])),
+            'h3': tf.Variable(tf.random_normal([n_hidden_2, n_hidden_3])),
+            'out': tf.Variable(tf.random_normal([n_hidden_3, n_output]))
+        }
 
-    keep_prob = tf.placeholder("float", name='r')
+        biases = {
+            'b1': tf.Variable(tf.random_normal([n_hidden_1])),
+            'b2': tf.Variable(tf.random_normal([n_hidden_2])),
+            'b3': tf.Variable(tf.random_normal([n_hidden_3])),
+            'out': tf.Variable(tf.random_normal([n_output]))
+        }
 
-    batch_size = 64
-
-    x = tf.placeholder("float", [None, n_input], name = 'x')
-    y = tf.placeholder("float", [None, n_output], name = 'y')
-
-
-    output = multilayer_perceptron(x, weights, biases, keep_prob)
-    cost = tf.reduce_mean(tf.square(output - y), name='cost')
-    optimizer = tf.train.AdamOptimizer(0.00006).minimize(cost)
-    tf.add_to_collection("optimizer", optimizer)
-    tf.summary.scalar("cost", cost)
-
-    train_model([train_x, train_y, test_x, test_y], args.envname, args.nb_epochs, batch_size)
+        keep_prob = tf.placeholder("float", name='r')
 
 
+        input_x = tf.placeholder("float", [None, n_input], name = 'x')
+        input_y = tf.placeholder("float", [None, n_output], name = 'y')
 
-def train_model(data, envname, nb_epochs, batch_size):
+
+        output = multilayer_perceptron(input_x, weights, biases, keep_prob)
+        cost = tf.reduce_mean(tf.square(output - input_y), name='cost')
+        optimizer = tf.train.AdamOptimizer(0.00006).minimize(cost)
+        tf.add_to_collection("optimizer", optimizer)
+        tf.summary.scalar("cost", cost)
+
+
+    train_model([train_x, train_y, test_x, test_y], args.envname, args.nb_epochs, args.batch_size, False)
+
+
+
+def train_model(data, envname, nb_epochs, batch_size, log_summary=True):
     train_x, train_y, test_x, test_y = data
     c_t = []
     c_test = []
+
+
+
     with tf.Session() as sess:
         # Initiate session and initialize all vaiables
         sess.run(tf.global_variables_initializer())
-        saver = tf.train.Saver()
-        merge = tf.summary.merge_all()
-        train_writer = tf.summary.FileWriter( './logs/' + envname + '/train ', sess.graph)
+        if log_summary:
+            merge = tf.summary.merge_all()
+            train_writer = tf.summary.FileWriter( './logs/' + envname + '/train ', sess.graph)
 
-        if(os.path.isdir("my_expert/" + envname + "/" )):
+        if(os.path.isfile("my_expert/" + envname + "/" + envname +".meta" )):
+            saver = tf.train.import_meta_graph("my_expert/" + envname + "/" + envname +".meta")
             saver.restore(sess,"my_expert/" + envname+ "/" + envname )
+        else:
+            saver = tf.train.Saver()
 
         graph = tf.get_default_graph()
         cost = graph.get_operation_by_name("cost").outputs[0]
@@ -115,15 +128,20 @@ def train_model(data, envname, nb_epochs, batch_size):
             for i in range(total_batch):
 
                 batch_x, batch_y = x_batches[i], y_batches[i]
-
-                summary, _, _ = sess.run([merge, cost, optimizer], feed_dict={input_x: batch_x, input_y: batch_y, keep_prob: 0.8})
+                if log_summary:
+                    print merge
+                    summary, _, _ = sess.run([merge, cost, optimizer], feed_dict={input_x: batch_x, input_y: batch_y, keep_prob: 0.8})
+                else:
+                     c, _ = sess.run([cost, optimizer], feed_dict={input_x: batch_x, input_y: batch_y, keep_prob: 0.8})
                 # Run cost and train with each sample
             c_t.append(sess.run(cost, feed_dict={input_x: batch_x, input_y: batch_y, keep_prob: 0.8}))
-            train_writer.add_summary(summary, epoch)
             c_test.append(sess.run(cost, feed_dict={input_x:test_x, input_y:test_y, keep_prob: 0.8}))
-            print('Epoch :',epoch,'training Cost :',c_t[epoch], "testing cost :", c_test[epoch])
+            if log_summary:
+                train_writer.add_summary(summary, epoch)
+            print('Epoch :',epoch,'training Cost :', c_t[epoch], "testing cost :", c_test[epoch])
         saver.save(sess,"my_expert/" + envname + "/" + envname)
-        print('Model Saved')
+    print('Model Saved')
+
 
 if __name__ == '__main__':
     main()

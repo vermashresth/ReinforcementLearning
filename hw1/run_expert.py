@@ -44,6 +44,7 @@ def main():
         for i in range(args.num_rollouts):
             print('iter', i)
             obs = env.reset()
+            print obs.shape
             done = False
             totalr = 0.
             steps = 0
