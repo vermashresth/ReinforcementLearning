@@ -126,8 +126,12 @@ def learn(env,
     # q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='q_func')
     # Older versions of TensorFlow may require using "VARIABLES" instead of "GLOBAL_VARIABLES"
     ######
-    
+
     # YOUR CODE HERE
+    q_model = q_func(obs_t_ph, num_actions, scope="q_func", reuse=False)
+    target_q_model = q_func(obs_t_ph, num_actions, scope="target_q_func", reuse=False)
+
+    
 
     ######
 
@@ -193,7 +197,7 @@ def learn(env,
         # might as well be random, since you haven't trained your net...)
 
         #####
-        
+
         # YOUR CODE HERE
 
         #####
@@ -243,9 +247,9 @@ def learn(env,
             # you should update every target_update_freq steps, and you may find the
             # variable num_param_updates useful for this (it was initialized to 0)
             #####
-            
-            # YOUR CODE HERE
 
+            # YOUR CODE HERE
+            pass
             #####
 
         ### 4. Log progress
